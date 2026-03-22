@@ -17,12 +17,17 @@ import { Loader2, Sparkles, Wand2, Upload, X, Image as ImageIcon } from "lucide-
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
+import { useUser } from "@clerk/nextjs";
+import { PaywallModal } from "@/components/PaywallModal";
 
 export function AdForm() {
     const router = useRouter();
+    const { user } = useUser();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [loading, setLoading] = useState(false);
     const [userStatus, setUserStatus] = useState({ tier: 'FREE', usage: 0, limit: 1 });
+    const [showPaywall, setShowPaywall] = useState(false);
+    const [paywallMessage, setPaywallMessage] = useState("Upgrade to Pro to access this feature.");
     const [selectedImages, setSelectedImages] = useState<{ file: File; preview: string }[]>([]);
     const [formData, setFormData] = useState({
         productName: "",
@@ -53,6 +58,14 @@ export function AdForm() {
     };
 
     const handleSelectChange = (name: string, value: string) => {
+        if (userStatus.tier === 'FREE') {
+            const proValues = ['facebook', 'professional', 'emotional', 'luxury'];
+            if (proValues.includes(value)) {
+                setPaywallMessage("Upgrade to Pro to unlock premium platforms and tones.");
+                setShowPaywall(true);
+                return;
+            }
+        }
         setFormData({ ...formData, [name]: value });
     };
 
@@ -87,6 +100,13 @@ export function AdForm() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (userStatus.tier === 'FREE' && userStatus.usage >= userStatus.limit) {
+            setPaywallMessage("You have reached your daily limit of 3 free scripts. Upgrade to Pro for more.");
+            setShowPaywall(true);
+            return;
+        }
+
         setLoading(true);
 
         try {
@@ -110,7 +130,13 @@ export function AdForm() {
                 localStorage.setItem("generatedAd", JSON.stringify(data));
                 router.push("/dashboard/results");
             } else {
-                console.error("Failed to generate");
+                const errData = await response.json().catch(() => ({}));
+                if (errData.limitReached) {
+                    setPaywallMessage(errData.error || "Daily limit reached. Upgrade for more.");
+                    setShowPaywall(true);
+                } else {
+                    console.error("Failed to generate");
+                }
             }
         } catch (error) {
             console.error("Error submitting form", error);
@@ -361,6 +387,7 @@ export function AdForm() {
                     </div>
                 </div>
             )}
+            <PaywallModal isOpen={showPaywall} onClose={() => setShowPaywall(false)} userId={user?.id} message={paywallMessage} />
         </Card>
     );
 }

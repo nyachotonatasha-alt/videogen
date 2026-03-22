@@ -13,6 +13,8 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Sparkles, Wand2, Rocket, Share2, Target, CheckCircle2 } from "lucide-react";
+import { useUser } from "@clerk/nextjs";
+import { PaywallModal } from "@/components/PaywallModal";
 
 interface ViralIdea {
     title: string;
@@ -22,7 +24,10 @@ interface ViralIdea {
 }
 
 export function ViralIdeasForm() {
+    const { user } = useUser();
     const [userStatus, setUserStatus] = useState({ tier: 'FREE', usage: 0, limit: 1 });
+    const [showPaywall, setShowPaywall] = useState(false);
+    const [paywallMessage, setPaywallMessage] = useState("Upgrade to Pro to access this feature.");
     const [loading, setLoading] = useState(false);
     const [niche, setNiche] = useState("");
     const [platform, setPlatform] = useState("tiktok");
@@ -45,6 +50,13 @@ export function ViralIdeasForm() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (userStatus.tier === 'FREE' && userStatus.usage >= userStatus.limit) {
+            setPaywallMessage("You have reached your daily limit of 3 free scripts. Upgrade to Pro for more.");
+            setShowPaywall(true);
+            return;
+        }
+
         setLoading(true);
         setIdeas([]);
 
@@ -67,7 +79,13 @@ export function ViralIdeasForm() {
                     setUserStatus(status);
                 }
             } else {
-                console.error("Failed to generate ideas");
+                const errData = await response.json().catch(() => ({}));
+                if (errData.limitReached) {
+                    setPaywallMessage(errData.error || "Daily limit reached. Upgrade for more.");
+                    setShowPaywall(true);
+                } else {
+                    console.error("Failed to generate ideas");
+                }
             }
         } catch (error) {
             console.error("Error submitting form", error);
@@ -127,7 +145,14 @@ export function ViralIdeasForm() {
                             </Label>
                             <Select
                                 value={platform}
-                                onValueChange={(val) => setPlatform(val)}
+                                onValueChange={(val) => {
+                                    if (userStatus.tier === 'FREE' && ['facebook', 'linkedin'].includes(val)) {
+                                        setPaywallMessage("Upgrade to Pro to unlock premium platforms.");
+                                        setShowPaywall(true);
+                                        return;
+                                    }
+                                    setPlatform(val);
+                                }}
                             >
                                 <SelectTrigger className="bg-white/5 border-white/10 h-12 focus:ring-primary/50 transition-all rounded-xl">
                                     <SelectValue placeholder="Select platform" />
@@ -136,8 +161,12 @@ export function ViralIdeasForm() {
                                     <SelectItem value="tiktok">TikTok</SelectItem>
                                     <SelectItem value="instagram">Instagram Reels</SelectItem>
                                     <SelectItem value="youtube">YouTube Shorts</SelectItem>
-                                    <SelectItem value="facebook">Facebook Ads</SelectItem>
-                                    <SelectItem value="linkedin">LinkedIn Video</SelectItem>
+                                    <SelectItem value="facebook" className={userStatus.tier === 'FREE' ? "opacity-30" : ""}>
+                                        Facebook Ads {userStatus.tier === 'FREE' && "(PRO)"}
+                                    </SelectItem>
+                                    <SelectItem value="linkedin" className={userStatus.tier === 'FREE' ? "opacity-30" : ""}>
+                                        LinkedIn Video {userStatus.tier === 'FREE' && "(PRO)"}
+                                    </SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -250,6 +279,7 @@ export function ViralIdeasForm() {
                     </div>
                 </div>
             )}
+            <PaywallModal isOpen={showPaywall} onClose={() => setShowPaywall(false)} userId={user?.id} message={paywallMessage} />
         </div>
     );
 }

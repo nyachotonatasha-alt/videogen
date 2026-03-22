@@ -13,6 +13,8 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Sparkles, Wand2, Rocket, Share2, Target, CheckCircle2 } from "lucide-react";
+import { useUser } from "@clerk/nextjs";
+import { PaywallModal } from "@/components/PaywallModal";
 
 interface ThreeDayIdea {
     day: string;
@@ -24,7 +26,10 @@ interface ThreeDayIdea {
 }
 
 export function ThreeDayGeneratorForm() {
+    const { user } = useUser();
     const [userStatus, setUserStatus] = useState({ tier: 'FREE', usage: 0, limit: 1 });
+    const [showPaywall, setShowPaywall] = useState(false);
+    const [paywallMessage, setPaywallMessage] = useState("Upgrade to Pro to access this feature.");
     const [loading, setLoading] = useState(false);
     const [niche, setNiche] = useState("");
     const [platform, setPlatform] = useState("tiktok");
@@ -47,6 +52,13 @@ export function ThreeDayGeneratorForm() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (userStatus.tier === 'FREE' && userStatus.usage >= userStatus.limit) {
+            setPaywallMessage("You have reached your daily limit of 3 free plans. Upgrade to Pro for unlimited access.");
+            setShowPaywall(true);
+            return;
+        }
+
         setLoading(true);
         setPlan([]);
 
@@ -69,7 +81,13 @@ export function ThreeDayGeneratorForm() {
                     setUserStatus(status);
                 }
             } else {
-                console.error("Failed to generate 3-day plan");
+                const errData = await response.json().catch(() => ({}));
+                if (errData.limitReached) {
+                    setPaywallMessage(errData.error || "Daily limit reached. Upgrade for more.");
+                    setShowPaywall(true);
+                } else {
+                    console.error("Failed to generate 3-day plan");
+                }
             }
         } catch (error) {
             console.error("Error submitting form", error);
@@ -249,6 +267,7 @@ export function ThreeDayGeneratorForm() {
                     </div>
                 </div>
             )}
+            <PaywallModal isOpen={showPaywall} onClose={() => setShowPaywall(false)} userId={user?.id} message={paywallMessage} />
         </div>
     );
 }

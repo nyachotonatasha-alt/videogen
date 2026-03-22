@@ -4,8 +4,9 @@ import { AdForm } from "@/components/AdForm";
 import { ViralIdeasForm } from "@/components/ViralIdeasForm";
 import { ScriptImproverForm } from "@/components/ScriptImproverForm";
 import { ThreeDayGeneratorForm } from "@/components/ThreeDayGeneratorForm";
+import { UsageTab } from "@/components/UsageTab";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Sparkles, Video, Wand2, Calendar } from "lucide-react";
+import { Sparkles, Video, Wand2, Calendar, BarChart2 } from "lucide-react";
 
 export default function DashboardPage() {
     return (
@@ -21,7 +22,7 @@ export default function DashboardPage() {
 
                 <Tabs defaultValue="ad-gen" className="w-full">
                     <div className="flex justify-center mb-8">
-                        <TabsList className="grid w-full max-w-4xl grid-cols-4 bg-white/5 border border-white/10 h-14 p-1 rounded-2xl">
+                        <TabsList className="grid w-full max-w-5xl grid-cols-5 bg-white/5 border border-white/10 h-14 p-1 rounded-2xl">
                             <TabsTrigger value="ad-gen" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-white rounded-xl transition-all font-bold">
                                 <Video className="h-4 w-4" />
                                 Ad Generator
@@ -37,6 +38,10 @@ export default function DashboardPage() {
                             <TabsTrigger value="three-day" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-white rounded-xl transition-all font-bold">
                                 <Calendar className="h-4 w-4" />
                                 3-Day Challenge
+                            </TabsTrigger>
+                            <TabsTrigger value="usage" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-white rounded-xl transition-all font-bold">
+                                <BarChart2 className="h-4 w-4" />
+                                Usage
                             </TabsTrigger>
                         </TabsList>
                     </div>
@@ -58,6 +63,10 @@ export default function DashboardPage() {
 
                     <TabsContent value="three-day" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                         <ThreeDayGeneratorForm />
+                    </TabsContent>
+
+                    <TabsContent value="usage" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <UsageTab />
                     </TabsContent>
                 </Tabs>
             </main>

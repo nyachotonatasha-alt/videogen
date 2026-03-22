@@ -8,6 +8,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Loader2, Sparkles, Wand2, Rocket, Share2, Target, CheckCircle2, FileText, Zap, Heart, MessageSquare, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import { useUser } from "@clerk/nextjs";
+import { PaywallModal } from "@/components/PaywallModal";
 
 interface ImprovedResult {
     improvedScript: string;
@@ -36,7 +38,10 @@ const Switch = ({ checked, onCheckedChange }: { checked: boolean, onCheckedChang
 );
 
 export function ScriptImproverForm() {
+    const { user } = useUser();
     const [userStatus, setUserStatus] = useState({ tier: 'FREE', usage: 0, limit: 1 });
+    const [showPaywall, setShowPaywall] = useState(false);
+    const [paywallMessage, setPaywallMessage] = useState("Upgrade to Pro to access this feature.");
     const [loading, setLoading] = useState(false);
     const [script, setScript] = useState("");
     const [options, setOptions] = useState({
@@ -65,6 +70,12 @@ export function ScriptImproverForm() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!script.trim()) return;
+
+        if (userStatus.tier === 'FREE' && userStatus.usage >= userStatus.limit) {
+            setPaywallMessage("You have reached your daily limit of 3 free scripts. Upgrade to Pro for more.");
+            setShowPaywall(true);
+            return;
+        }
         
         setLoading(true);
         setResult(null);
@@ -88,7 +99,13 @@ export function ScriptImproverForm() {
                     setUserStatus(status);
                 }
             } else {
-                console.error("Failed to improve script");
+                const errData = await response.json().catch(() => ({}));
+                if (errData.limitReached) {
+                    setPaywallMessage(errData.error || "Daily limit reached. Upgrade for more.");
+                    setShowPaywall(true);
+                } else {
+                    console.error("Failed to improve script");
+                }
             }
         } catch (error) {
             console.error("Error submitting form", error);
@@ -192,11 +209,15 @@ export function ScriptImproverForm() {
                                     <p className="text-[10px] text-muted-foreground font-medium">Emotional Hook</p>
                                 </div>
                                 <Switch checked={options.addEmotion} onCheckedChange={(val) => {
-                                    if (userStatus.tier === 'FREE') return;
+                                    if (userStatus.tier === 'FREE') {
+                                        setPaywallMessage("Upgrade to Pro to unlock premium refinement modes.");
+                                        setShowPaywall(true);
+                                        return;
+                                    }
                                     setOptions({...options, addEmotion: val});
                                 }} />
                                 {userStatus.tier === 'FREE' && (
-                                    <Link href="/pricing" className="absolute inset-0 z-10" />
+                                    <div className="absolute inset-0 z-10" />
                                 )}
                             </div>
 
@@ -224,11 +245,15 @@ export function ScriptImproverForm() {
                                     <p className="text-[10px] text-muted-foreground font-medium">Narrative Drive</p>
                                 </div>
                                 <Switch checked={options.addStorytelling} onCheckedChange={(val) => {
-                                    if (userStatus.tier === 'FREE') return;
+                                    if (userStatus.tier === 'FREE') {
+                                        setPaywallMessage("Upgrade to Pro to unlock premium refinement modes.");
+                                        setShowPaywall(true);
+                                        return;
+                                    }
                                     setOptions({...options, addStorytelling: val});
                                 }} />
                                 {userStatus.tier === 'FREE' && (
-                                    <Link href="/pricing" className="absolute inset-0 z-10" />
+                                    <div className="absolute inset-0 z-10" />
                                 )}
                             </div>
                         </div>
@@ -384,6 +409,7 @@ export function ScriptImproverForm() {
                     </div>
                 </div>
             )}
+            <PaywallModal isOpen={showPaywall} onClose={() => setShowPaywall(false)} userId={user?.id} message={paywallMessage} />
         </div>
     );
 }
